@@ -1,0 +1,101 @@
+---
+title: "LangChain4j"
+description: "Gate LangChain4j tool execution behind a Pump Up approval — same pattern as LangChain, in Java."
+---
+
+LangChain4j exposes tool calls through `ToolExecutor` and tool-binding APIs. The natural integration point for Pump Up is wrapping the executor: pause before running the tool, ask a human, then run only if they approve.
+
+## Install
+
+<CodeGroup>
+```xml Maven
+<dependency>
+  <groupId>com.pumpup</groupId>
+  <artifactId>pumpup-sdk</artifactId>
+  <version>0.1.0</version>
+</dependency>
+<dependency>
+  <groupId>dev.langchain4j</groupId>
+  <artifactId>langchain4j</artifactId>
+  <version>0.34.0</version>
+</dependency>
+```
+
+```kotlin Gradle
+implementation("com.pumpup:pumpup-sdk:0.1.0")
+implementation("dev.langchain4j:langchain4j:0.34.0")
+```
+</CodeGroup>
+
+{/* TODO: confirm Java SDK Maven coordinates and current LangChain4j version */}
+
+## Minimum working example
+
+```java
+import com.pumpup.PumpUp;
+import com.pumpup.ApprovalResult;
+import dev.langchain4j.agent.tool.ToolExecutionRequest;
+import dev.langchain4j.service.tool.ToolExecutor;
+
+import java.util.Map;
+
+public class GatedClaimExecutor implements ToolExecutor {
+
+    private final PumpUp pumpup = new PumpUp(System.getenv("PUMPUP_API_KEY"));
+    private final ToolExecutor delegate;
+
+    public GatedClaimExecutor(ToolExecutor delegate) {
+        this.delegate = delegate;
+    }
+
+    @Override
+    public String execute(ToolExecutionRequest request, Object memoryId) {
+        if (!"process_claim".equals(request.name())) {
+            return delegate.execute(request, memoryId);
+        }
+
+        Map<String, Object> args = parseJson(request.arguments());
+
+        ApprovalResult result = pumpup.approvals().create(
+            "approve_claim",
+            Map.of(
+                "amount_usd", args.get("amount_usd"),
+                "claim_id", args.get("claim_id")
+            )
+        );
+
+        return switch (result.status()) {
+            case APPROVED, EDITED -> delegate.execute(
+                request.withArguments(toJson(result.params())),
+                memoryId
+            );
+            case REJECTED -> "Rejected by reviewer: " + result.notes();
+            case TIMED_OUT -> "Approval timed out — no action taken";
+        };
+    }
+}
+```
+
+Wire `GatedClaimExecutor` into your agent in place of the underlying executor for `process_claim`.
+
+## Walkthrough
+
+1. The agent decides to call `process_claim`.
+2. Your wrapper intercepts the call and sends the proposed arguments to Pump Up.
+3. The reviewer assigned to the `approve_claim` queue approves, edits, or rejects.
+4. On approve or edit, the wrapper executes the underlying tool with `result.params()`. On reject or timeout, it returns a string the model sees as the tool's "result" — the model can then respond conversationally.
+
+## Resume behavior
+
+LangChain4j feeds the executor's return value back into the next model turn as the tool result. Returning a human-readable explanation on rejection lets the model recover gracefully without retrying.
+
+## Production notes
+
+- **Routing is server-side.** Configure reviewers, thresholds, and SLAs for `approve_claim` in the [dashboard](https://app.pumpup.dev).
+- **Wrap selectively.** Only wrap executors for sensitive tools — read-only tools shouldn't pay the latency cost.
+- **Long approvals.** For approvals that may take hours, run the agent in a queue worker, or switch to an async pattern. See [Approvals](/concepts/approvals).
+
+## Related
+
+- [Approvals](/concepts/approvals), [Queues](/concepts/queues)
+- [LangChain integration](/integrations/langchain) — the Python equivalent

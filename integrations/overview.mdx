@@ -1,0 +1,54 @@
+---
+title: "Integrations overview"
+description: "Drop Pump Up into the agent framework you already use."
+---
+
+Pump Up is framework-agnostic. The SDK is the same regardless of which orchestrator your agent runs on, and most integrations are under ten lines of code: import the SDK, call `approvals.create` (or `info_requests`, `handoffs`, `routing`) at the point where you need a human, branch on the result.
+
+These pages show the idiomatic integration point for each framework — the right callback, node, or gating step — using the same canonical claim-approval example so you can compare them side by side.
+
+## Pick your framework
+
+<Columns cols={2}>
+  <Card title="OpenAI SDK" icon="circle-bolt" href="/integrations/openai">
+    Gate `tool_calls` behind an approval before executing them.
+  </Card>
+  <Card title="Anthropic SDK" icon="circle-bolt" href="/integrations/anthropic">
+    Gate `tool_use` blocks behind an approval before tool execution.
+  </Card>
+  <Card title="LangChain" icon="link" href="/integrations/langchain">
+    Use a callback handler to intercept tool calls.
+  </Card>
+  <Card title="LangGraph" icon="diagram-project" href="/integrations/langgraph">
+    Add a node that pairs naturally with `interrupt`.
+  </Card>
+  <Card title="LangChain4j" icon="java" href="/integrations/langchain4j">
+    The same pattern, in Java.
+  </Card>
+  <Card title="Semantic Kernel" icon="microsoft" href="/integrations/semantic-kernel">
+    Gate kernel function calls in Python or .NET.
+  </Card>
+  <Card title="Mastra" icon="bolt" href="/integrations/mastra">
+    Wire Pump Up into a Mastra workflow step.
+  </Card>
+</Columns>
+
+## Don't see your framework?
+
+Pump Up's SDK works anywhere your agent code runs — there's no requirement to use one of these frameworks. The canonical example on each integration page is small enough to translate to whatever orchestrator you're on.
+
+The SDK ships in Python, TypeScript, and Java today. {/* TODO: confirm currently shipping language SDKs */}
+
+## What's the same across every integration
+
+- **Queue names live on the server.** Your code references queues by string. Routing, reviewers, and SLAs are configured in the [dashboard](https://app.pumpup.dev), not in your code.
+- **`params` is the data the reviewer sees.** Pass realistic field names; they show up on the ticket.
+- **Calls block by default.** `approvals.create` waits for the reviewer (or the SLA). For long-running approvals, use the async pattern. See [Approvals](/concepts/approvals).
+- **Decisions land in the audit trail.** No extra wiring required.
+
+## Related
+
+- [Approvals](/concepts/approvals)
+- [Information requests](/concepts/info-requests)
+- [Handoffs](/concepts/handoffs)
+- [Routing](/concepts/routing)

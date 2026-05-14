@@ -1,0 +1,52 @@
+---
+title: "Queues"
+description: "The named buckets that hold requests, route them to reviewers, and apply policies."
+---
+
+A queue is the primary unit of organization in Pump Up. Every approval, information request, handoff, and routing request belongs to exactly one queue. Routing rules, reviewers, SLAs, escalation policies, and ticket layouts are configured per queue in the dashboard.
+
+Your code only ever references a queue by name:
+
+```python
+pumpup.approvals.create(queue="approve_claim", params={...})
+```
+
+## Why queues live on the server
+
+Routing logic, reviewer rosters, and SLAs change as your team and policies change. Hard-coding them in your agent means a deploy every time someone goes on vacation. Queues let your ops team adjust routing without touching agent code, and let your auditors see exactly what rules were in effect when a decision was made.
+
+## What a queue defines
+
+| Configuration | Examples |
+|---|---|
+| **Reviewers** | A specific user, a team, an on-call rotation, an external reviewer pool |
+| **Routing rules** | "Send `amount_usd > 10000` to the senior team", "Round-robin within the claims team" |
+| **SLA** | "Respond within 30 minutes during business hours, 4 hours otherwise" |
+| **Escalation** | "If unanswered after the SLA, page the on-call manager" |
+| **Display schema** | Which `params` fields are shown, in what order, with what labels |
+| **Allowed actions** | For approvals: can reviewers edit, or only approve/reject? |
+
+## Naming queues
+
+Use queue names that describe the *decision*, not the team or the agent.
+
+- Good: `approve_claim`, `verify_kyc`, `reconcile_billing`, `discount_path`
+- Avoid: `claims_team`, `kyc_agent_v2`, `general`
+
+A queue named after a team has to be renamed when the team reorganizes. A queue named after the decision survives reorgs.
+
+## One queue per kind of decision
+
+Resist the urge to have a single `general_approvals` queue. Each distinct decision deserves its own queue, because each has different reviewers, SLAs, and display fields.
+
+## Configuring queues
+
+Queue configuration lives in the [dashboard](https://app.pumpup.dev). The SDK does not create or modify queues — it only sends requests to existing ones.
+
+{/* TODO: link to dashboard guide / API for queue management once available */}
+
+## Related
+
+- [Approvals](/concepts/approvals), [Information requests](/concepts/info-requests), [Handoffs](/concepts/handoffs), [Routing](/concepts/routing) — the request types that target queues
+- [SLAs and timeouts](/concepts/slas-and-timeouts) — how queues handle slow reviewers
+- [Tickets](/concepts/tickets) — what reviewers see for queued requests

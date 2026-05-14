@@ -1,0 +1,52 @@
+---
+title: "SLAs and timeouts"
+description: "Cap how long a request can sit before fallback behavior kicks in, and choose what happens when it does."
+---
+
+Every queue has an SLA. If a reviewer doesn't respond before the SLA expires, Pump Up takes the queue's configured fallback action and your agent's call returns with a `timed_out` status.
+
+## Why SLAs are a queue-level setting
+
+Your agent shouldn't decide what's an acceptable wait — that's an ops decision. An approval for a $10K refund and an info request for a missing customer attribute have different urgency, different reviewers, and different fallback paths. Configure each queue's SLA in the dashboard so ops can change it without redeploying agents.
+
+## What happens when an SLA expires
+
+Configured per queue:
+
+| Fallback | What happens |
+|---|---|
+| **Auto-reject** | The request resolves as if the reviewer rejected it. Use for safety-by-default approvals. |
+| **Auto-approve** | The request resolves as if the reviewer approved the original `params`. Use sparingly — only for low-risk queues. |
+| **Escalate** | The request is re-routed to a different queue (typically a higher-tier reviewer). The SLA clock resets. |
+| **Time out** | The request resolves with `status: "timed_out"`. Your agent decides what to do. |
+
+The default for a new queue is **time out** — Pump Up will not auto-decide on your behalf unless you explicitly configure it.
+
+## Handling timeouts in your agent
+
+```python
+result = pumpup.approvals.create(queue="approve_claim", params={...})
+
+if result.status == "timed_out":
+    log.warn("approval_timed_out", claim_id=params["claim_id"])
+    page_oncall("claim approval pending review")
+    return
+```
+
+## Business hours
+
+SLAs can be evaluated against a queue's business calendar. A 30-minute SLA on a queue with US-East business hours will pause overnight rather than tripping at 2 a.m.
+
+{/* TODO: confirm business-hours configuration UI / fields */}
+
+## Long-running requests
+
+For requests that may sit for hours or days (handoffs, complex investigations), prefer:
+
+- A long SLA with **escalate** as the fallback, so requests don't silently die.
+- Async delivery — your agent returns control to the caller and resumes when the human responds. See [Approvals](/concepts/approvals) for the async pattern.
+
+## Related
+
+- [Queues](/concepts/queues) — where SLAs are configured
+- [Audit trail](/concepts/audit-trail) — SLA breaches and escalations are logged

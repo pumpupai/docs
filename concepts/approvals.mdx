@@ -1,0 +1,95 @@
+---
+title: "Approvals"
+description: "Pause an agent on a sensitive action, send a proposed action to a human, and resume with the decision."
+---
+
+Use an approval when your agent wants to take an action that needs a human's sign-off — issuing a refund, sending an outbound email, releasing a payout, deleting customer data. Pump Up holds the action, routes a ticket to the right reviewer, and returns their decision so your agent can act on it.
+
+## The simplest example
+
+```python
+import os
+from pumpup import PumpUp
+
+pumpup = PumpUp(api_key=os.environ["PUMPUP_API_KEY"])
+
+result = pumpup.approvals.create(
+    queue="approve_claim",
+    params={
+        "amount_usd": 8400,
+        "claim_id": "CLM-83472",
+    },
+)
+
+if result.status == "approved":
+    process_claim(result.params["claim_id"])
+```
+
+`approvals.create` blocks until the reviewer responds or the queue's SLA expires.
+
+## What the reviewer sees
+
+The reviewer assigned to the `approve_claim` queue gets a ticket with:
+
+- The fields you sent in `params`, rendered with the queue's display schema
+- Three actions: **Approve**, **Reject**, or **Edit and approve**
+- The agent's reasoning, if you passed it in `params`
+- A free-text note field for the reviewer's reasoning
+
+## What `result` contains
+
+| Field | Type | Description |
+|---|---|---|
+| `status` | string | One of `approved`, `rejected`, `edited`, `timed_out` |
+| `params` | dict | The original `params`, with any reviewer edits applied |
+| `decided_by` | string | The reviewer's user ID or email |
+| `decided_at` | datetime | When the decision was made |
+| `notes` | string | Free-text note the reviewer added, if any |
+
+When `status` is `edited`, treat the response as approved but use `result.params` rather than the values you sent.
+
+## Common patterns
+
+### Threshold-gated approvals
+
+Only call Pump Up when the action crosses a policy threshold. The agent handles the easy cases; humans see only the ones that need them.
+
+```python
+if amount_usd > 1000:
+    result = pumpup.approvals.create(
+        queue="approve_claim",
+        params={"amount_usd": amount_usd, "claim_id": claim_id},
+    )
+    if result.status != "approved" and result.status != "edited":
+        return
+    amount_usd = result.params["amount_usd"]
+
+process_claim(claim_id, amount_usd)
+```
+
+### Handling timeouts
+
+If the SLA expires before a reviewer responds, `status` is `timed_out`. The fallback behavior — escalate, auto-reject, or hold — is configured on the queue.
+
+```python
+if result.status == "timed_out":
+    log.warn(f"Approval timed out for claim {claim_id}")
+    return
+```
+
+### Async approvals with webhooks
+
+For long-running approvals, configure a webhook on the queue and use the non-blocking variant.
+
+{/* TODO: confirm async/webhook SDK shape — replace with real method name and payload */}
+
+## Configuration
+
+Routing, reviewers, SLAs, escalation, and the display schema for each queue are configured in the dashboard, not in the SDK call. See [Queues](/concepts/queues) and [SLAs and timeouts](/concepts/slas-and-timeouts).
+
+## Related
+
+- [Queues](/concepts/queues) — where requests go and who sees them
+- [Tickets](/concepts/tickets) — the reviewer's UI
+- [Audit trail](/concepts/audit-trail) — every decision logged and exportable
+- [OpenAI integration](/integrations/openai) — gate `tool_use` blocks behind an approval

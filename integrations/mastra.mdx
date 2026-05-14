@@ -1,0 +1,91 @@
+---
+title: "Mastra"
+description: "Add a Pump Up step to a Mastra workflow to gate actions behind a human approval."
+---
+
+Mastra workflows are sequences of typed steps. The natural integration point for Pump Up is a step that calls `approvals.create` and emits the reviewer's decision into the next step's input.
+
+## Install
+
+<CodeGroup>
+```bash npm
+npm install @pumpup/sdk @mastra/core
+```
+
+```bash pnpm
+pnpm add @pumpup/sdk @mastra/core
+```
+
+```bash yarn
+yarn add @pumpup/sdk @mastra/core
+```
+</CodeGroup>
+
+## Minimum working example
+
+```typescript
+import { createWorkflow, createStep } from "@mastra/core/workflows";
+import { PumpUp } from "@pumpup/sdk";
+import { z } from "zod";
+
+const pumpup = new PumpUp({ apiKey: process.env.PUMPUP_API_KEY! });
+
+const requestApproval = createStep({
+  id: "request-approval",
+  inputSchema: z.object({ claimId: z.string(), amountUsd: z.number() }),
+  outputSchema: z.object({
+    status: z.enum(["approved", "rejected", "edited", "timed_out"]),
+    claimId: z.string(),
+    amountUsd: z.number(),
+  }),
+  execute: async ({ inputData }) => {
+    const result = await pumpup.approvals.create({
+      queue: "approve_claim",
+      params: { amountUsd: inputData.amountUsd, claimId: inputData.claimId },
+    });
+    return {
+      status: result.status,
+      claimId: result.params.claimId,
+      amountUsd: result.params.amountUsd,
+    };
+  },
+});
+
+const processClaim = createStep({
+  id: "process-claim",
+  inputSchema: requestApproval.outputSchema,
+  outputSchema: z.object({ paid: z.boolean() }),
+  execute: async ({ inputData }) => {
+    if (inputData.status !== "approved" && inputData.status !== "edited") {
+      return { paid: false };
+    }
+    await payOut(inputData.claimId, inputData.amountUsd);
+    return { paid: true };
+  },
+});
+
+export const claimWorkflow = createWorkflow({ id: "claim", steps: [requestApproval, processClaim] });
+```
+
+## Walkthrough
+
+1. `requestApproval` calls Pump Up and waits for the reviewer.
+2. The reviewer's decision flows into `processClaim` as `inputData`. If they edited, `claimId` and `amountUsd` reflect the edits.
+3. `processClaim` only pays out when the status is `approved` or `edited`.
+
+## Resume behavior
+
+The simple example above blocks inside `requestApproval` until the SDK call returns. For long-running approvals, use Mastra's suspend/resume — suspend the workflow inside the step and resume it when a webhook from Pump Up fires.
+
+{/* TODO: confirm Mastra suspend/resume API and add a worked example */}
+
+## Production notes
+
+- **Routing is server-side.** Reviewers, thresholds, and SLAs for `approve_claim` live in the [dashboard](https://app.pumpup.dev), not in the workflow.
+- **Use Zod schemas in both directions.** Validate the reviewer's decision shape before passing it downstream so a misconfigured queue can't break the workflow silently.
+- **Long approvals.** Switch to suspend/resume for any queue where SLAs are measured in hours rather than minutes.
+
+## Related
+
+- [Approvals](/concepts/approvals), [Queues](/concepts/queues)
+- [OpenAI integration](/integrations/openai) — the same gating idea without a workflow framework

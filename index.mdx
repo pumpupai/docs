@@ -1,133 +1,44 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
-icon: 'star'
+title: "Pump Up"
+description: "Human-in-the-loop infrastructure for AI agents — approvals, information requests, handoffs, and routing with built-in audit trails."
 ---
 
-## Setting up
+Pump Up is the human-in-the-loop layer for AI agents. When your agent needs an approval, a missing piece of information, or a handoff to a person, Pump Up routes the request to the right reviewer, enforces SLAs, and returns the answer to your agent — with a full audit trail of who decided what and why.
 
-Get your documentation site up and running in minutes.
+You add Pump Up to an existing agent in under ten lines. The rest — routing rules, queues, reviewers, escalations — is configured on the server, not hard-coded in your call site.
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+## The four primitives
 
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
+Every Pump Up interaction is one of four request types. Pick the one that matches what your agent needs from a human.
 
 <Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+  <Card title="Approvals" icon="circle-check" href="/concepts/approvals">
+    The agent proposes a sensitive action. A human approves, rejects, or edits.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Information requests" icon="circle-question" href="/concepts/info-requests">
+    The agent is missing context it can't find. A human supplies it.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Handoffs" icon="arrow-right-arrow-left" href="/concepts/handoffs">
+    The agent has done all it can. A human takes over and finishes the job.
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Routing" icon="signs-post" href="/concepts/routing">
+    A human decides the next step in the workflow.
   </Card>
 </Columns>
 
-## Create beautiful pages
-
-Everything you need to create world-class documentation.
+## Start here
 
 <Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Send your first approval request in five minutes.
   </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
+  <Card title="Integrations" icon="puzzle-piece" href="/integrations/overview">
+    Plug Pump Up into OpenAI, Anthropic, LangChain, LangGraph, Mastra, and more.
   </Card>
 </Columns>
 
-## Make your content agent ready
+## How it fits
 
-Make your docs work for humans and AI agents alike.
+Generic AI agents can't be trusted to run sensitive workflows end-to-end. Real business processes have policies, thresholds, approval paths, and exception logic that need a human in the loop — not as a fallback, but as a deliberate control point.
 
-<Columns cols={2}>
-  <Card
-    title="Prompt component"
-    icon="robot"
-    href="/agent-ready/prompt"
-  >
-    Embed shareable AI prompts readers can copy or open in Cursor.
-  </Card>
-  <Card
-    title="Visibility"
-    icon="eye"
-    href="/agent-ready/visibility"
-  >
-    Show different content to humans and agents reading your docs.
-  </Card>
-  <Card
-    title="Contextual menu"
-    icon="bolt"
-    href="/agent-ready/contextual"
-  >
-    Give readers one-click access to Claude, ChatGPT, Cursor, and more.
-  </Card>
-  <Card
-    title="AI coding tools"
-    icon="wand-magic-sparkles"
-    href="/ai-tools/claude-code"
-  >
-    Set up Claude Code, Cursor, or Windsurf with Mintlify's skill.
-  </Card>
-</Columns>
-
-## Need inspiration?
-
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+Pump Up sits between your agent and the people who own those decisions. Your agent calls Pump Up, the right reviewer gets a focused ticket with the agent's context and proposed action, their decision flows back into your agent's run, and every step is logged for compliance and replay.

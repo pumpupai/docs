@@ -1,0 +1,44 @@
+---
+title: "Tickets"
+description: "The focused UI a reviewer sees for each request — context, action, and a place to record their decision."
+---
+
+A ticket is the reviewer's view of a request. It shows the agent's context, the proposed action or question, and the actions the reviewer can take. Tickets live in the [dashboard](https://app.pumpup.dev) and are the only thing reviewers need to look at — they don't see your agent code, your prompts, or your other queues.
+
+## What a ticket shows
+
+- **Header** — the queue name, the request type, and a short identifier
+- **Params** — every field you sent in `params`, rendered with the queue's display schema
+- **Agent context** — any reasoning or supporting data the agent attached
+- **Actions** — the buttons or fields appropriate to the request type
+- **History** — earlier decisions in the same workflow, when relevant
+
+## What changes per request type
+
+| Request type | What the reviewer does |
+|---|---|
+| **Approval** | Picks one of: Approve, Reject, Edit and approve. Optionally adds a note. |
+| **Information request** | Fills out a form built from the request's `schema`. |
+| **Handoff** | Takes over the case. Marks it complete with notes when done. |
+| **Routing** | Picks one of the `options` you provided. Optionally adds a note. |
+
+## Display schemas
+
+Each queue has a display schema that controls how `params` is rendered — field labels, ordering, formatters (currency, dates, links), and which fields to hide.
+
+You don't pass the schema in your SDK call. The reviewer sees the same layout for every request to the same queue, which makes batch review fast.
+
+{/* TODO: link to dashboard guide for configuring display schemas */}
+
+## Where reviewers see tickets
+
+- **Dashboard inbox** — the default. One list per queue the reviewer is on.
+- **Email** — configurable per queue. The email links back to the dashboard for the actual decision.
+- **Slack** — connect a channel per queue. Decisions can be made inline.
+
+{/* TODO: confirm Slack and email surfaces match the current product */}
+
+## Related
+
+- [Queues](/concepts/queues) — where ticket layout and routing are configured
+- [Audit trail](/concepts/audit-trail) — every ticket decision is logged with reviewer, time, and notes

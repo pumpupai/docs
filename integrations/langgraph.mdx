@@ -1,0 +1,101 @@
+---
+title: "LangGraph"
+description: "Add a Pump Up node to a LangGraph workflow, paired with the native interrupt primitive for clean state handling."
+---
+
+LangGraph models agents as graphs of nodes with checkpointed state. The natural integration point for Pump Up is a dedicated node that calls `approvals.create` (or another request type) and writes the result into the graph state. Pair it with LangGraph's `interrupt` primitive when you want the graph to pause cleanly while the human decides.
+
+## Install
+
+<CodeGroup>
+```bash pip
+pip install pumpup langgraph langchain-openai
+```
+
+```bash uv
+uv add pumpup langgraph langchain-openai
+```
+</CodeGroup>
+
+## Minimum working example
+
+```python
+import os
+from typing import TypedDict
+from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
+from pumpup import PumpUp
+
+pumpup = PumpUp(api_key=os.environ["PUMPUP_API_KEY"])
+
+class State(TypedDict):
+    claim_id: str
+    amount_usd: float
+    approved: bool
+
+def request_approval(state: State) -> State:
+    result = pumpup.approvals.create(
+        queue="approve_claim",
+        params={"amount_usd": state["amount_usd"], "claim_id": state["claim_id"]},
+    )
+    return {**state, "approved": result.status in ("approved", "edited"), "amount_usd": result.params["amount_usd"]}
+
+def process_claim(state: State) -> State:
+    pay_out(state["claim_id"], state["amount_usd"])
+    return state
+
+graph = StateGraph(State)
+graph.add_node("approval", request_approval)
+graph.add_node("process", process_claim)
+graph.set_entry_point("approval")
+graph.add_conditional_edges("approval", lambda s: "process" if s["approved"] else END)
+graph.add_edge("process", END)
+
+app = graph.compile(checkpointer=MemorySaver())
+app.invoke(
+    {"claim_id": "CLM-83472", "amount_usd": 8400, "approved": False},
+    config={"configurable": {"thread_id": "claim-83472"}},
+)
+```
+
+## Walkthrough
+
+1. `request_approval` is a node that calls Pump Up and returns the updated state.
+2. The conditional edge after `approval` routes to `process` if the human approved (or edited) the request, otherwise to `END`.
+3. The checkpointer persists state, so the run can survive a restart while waiting on a slow reviewer.
+
+## Pairing with `interrupt`
+
+For long-running approvals, use LangGraph's `interrupt` to pause the graph and resume it later when the Pump Up webhook fires.
+
+```python
+from langgraph.types import interrupt
+
+def request_approval(state: State) -> State:
+    request = pumpup.approvals.create_async(
+        queue="approve_claim",
+        params={"amount_usd": state["amount_usd"], "claim_id": state["claim_id"]},
+    )
+    decision = interrupt({"request_id": request.id})
+    return {**state, "approved": decision["status"] in ("approved", "edited"), "amount_usd": decision["params"]["amount_usd"]}
+```
+
+A webhook handler in your application receives the decision from Pump Up and resumes the graph with `app.invoke(Command(resume=decision), config)`.
+
+{/* TODO: confirm `approvals.create_async` (or correct name) and the response shape */}
+
+## Resume behavior
+
+- **Synchronous node** (the first example) — the graph blocks inside the node until the SDK call returns. Fine for short SLAs and short-lived processes.
+- **Interrupt + webhook** (the second example) — the graph yields, the process exits, and a webhook resumes the run later. Use this whenever reviewers can take more than a few minutes.
+
+## Production notes
+
+- **Use a durable checkpointer.** `MemorySaver` is fine for examples; production needs Postgres, Redis, or another persistent backend so resume works across restarts.
+- **Routing is server-side.** Reviewers and SLAs for `approve_claim` are configured in the [dashboard](https://app.pumpup.dev), not in the node.
+- **One queue per decision.** Don't route every approval through one giant queue — give each distinct decision its own.
+
+## Related
+
+- [Approvals](/concepts/approvals), [Routing](/concepts/routing)
+- [LangChain integration](/integrations/langchain) — for the non-graph callback approach

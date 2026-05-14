@@ -1,0 +1,89 @@
+---
+title: "Handoffs"
+description: "Hand a task off to a human when the agent has gone as far as it can."
+---
+
+Use a handoff when your agent has done its part and needs a person to finish the job — a billing reconciliation that can't be resolved automatically, a renewal conversation that needs a CSM, a compliance case that needs an investigator. The agent's run ends when the handoff is delivered; the human picks up in the dashboard with full context.
+
+## The simplest example
+
+```python
+import os
+from pumpup import PumpUp
+
+pumpup = PumpUp(api_key=os.environ["PUMPUP_API_KEY"])
+
+result = pumpup.handoffs.create(
+    queue="reconcile_billing",
+    params={
+        "customer_id": "CUST-44210",
+        "invoice_id": "INV-2026-04-019",
+        "summary": "Usage records and contract terms disagree by $2,140 on overage tier.",
+        "agent_findings": [
+            "Contract caps overage at 10K events/mo at $0.001/event",
+            "Usage report shows 12.1K events but billing engine charged for 14.3K",
+        ],
+    },
+)
+
+print(f"Handed off to {result.assigned_to} — case #{result.case_id}")
+```
+
+By default, `handoffs.create` returns as soon as the request is delivered to a reviewer. If you want to wait until the human marks the case complete, pass `wait=True`.
+
+## What `result` contains
+
+| Field | Type | Description |
+|---|---|---|
+| `status` | string | `delivered`, `completed`, `abandoned`, or `timed_out` |
+| `case_id` | string | Pump Up's identifier for the handoff case |
+| `assigned_to` | string | The user or team the case is assigned to |
+| `resolution` | dict | Present when `status` is `completed`; the human's notes and outcome |
+
+## When the agent should resume vs. exit
+
+A handoff is an exit point for most agent runs — the agent's job is done. Use `wait=True` only when the human's resolution feeds back into a downstream agent step (for example, an agent that drafts a follow-up email after a CSM's call).
+
+```python
+result = pumpup.handoffs.create(
+    queue="renewal_at_risk",
+    params={"customer_id": customer_id, "usage_decline_pct": 32},
+    wait=True,
+)
+
+if result.status == "completed":
+    draft_followup_email(result.resolution["call_notes"])
+```
+
+## Common patterns
+
+### Pass everything the human will need
+
+Handoffs work because the agent does the legwork. Include the data, links, and reasoning that let the human start without re-investigating.
+
+```python
+pumpup.handoffs.create(
+    queue="reconcile_billing",
+    params={
+        "customer_id": customer_id,
+        "invoice_id": invoice_id,
+        "summary": summary,
+        "agent_findings": findings,
+        "links": {
+            "invoice_pdf": invoice_url,
+            "usage_report": usage_url,
+            "contract": contract_url,
+        },
+    },
+)
+```
+
+### Routing by severity
+
+Configure the queue to split routes based on a `severity` or `value` field in `params`. See [Routing](/concepts/routing).
+
+## Related
+
+- [Approvals](/concepts/approvals) — when you want the agent to act after a decision
+- [Routing](/concepts/routing) — when a human picks the next step instead of taking over
+- [Audit trail](/concepts/audit-trail) — every handoff and resolution is logged

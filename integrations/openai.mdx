@@ -1,0 +1,137 @@
+---
+title: "OpenAI SDK"
+description: "Gate the OpenAI tool-calling loop behind a Pump Up approval before any tool runs."
+---
+
+The OpenAI SDK exposes tool calls as `tool_calls` on the assistant message. The natural integration point for Pump Up is the moment between the model returning a tool call and your code executing it: pause, ask a human, then run the tool only if they approve.
+
+## Install
+
+<CodeGroup>
+```bash pip
+pip install pumpup openai
+```
+
+```bash npm
+npm install @pumpup/sdk openai
+```
+
+```bash pnpm
+pnpm add @pumpup/sdk openai
+```
+
+```bash yarn
+yarn add @pumpup/sdk openai
+```
+</CodeGroup>
+
+## Minimum working example
+
+The agent has decided to call `process_claim`. We send the proposed call to a human and only execute the tool if they approve.
+
+<CodeGroup>
+```python Python
+import os, json
+from openai import OpenAI
+from pumpup import PumpUp
+
+openai = OpenAI()
+pumpup = PumpUp(api_key=os.environ["PUMPUP_API_KEY"])
+
+response = openai.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": "Process the claim for CLM-83472, $8400."}],
+    tools=[{
+        "type": "function",
+        "function": {
+            "name": "process_claim",
+            "parameters": {"type": "object", "properties": {
+                "claim_id": {"type": "string"},
+                "amount_usd": {"type": "number"},
+            }},
+        },
+    }],
+)
+
+call = response.choices[0].message.tool_calls[0]
+args = json.loads(call.function.arguments)
+
+if call.function.name == "process_claim":
+    result = pumpup.approvals.create(
+        queue="approve_claim",
+        params={"amount_usd": args["amount_usd"], "claim_id": args["claim_id"]},
+    )
+    if result.status in ("approved", "edited"):
+        process_claim(**result.params)
+```
+
+```typescript TypeScript
+import OpenAI from "openai";
+import { PumpUp } from "@pumpup/sdk";
+
+const openai = new OpenAI();
+const pumpup = new PumpUp({ apiKey: process.env.PUMPUP_API_KEY! });
+
+const response = await openai.chat.completions.create({
+  model: "gpt-4o",
+  messages: [{ role: "user", content: "Process the claim for CLM-83472, $8400." }],
+  tools: [{
+    type: "function",
+    function: {
+      name: "process_claim",
+      parameters: { type: "object", properties: {
+        claim_id: { type: "string" },
+        amount_usd: { type: "number" },
+      }},
+    },
+  }],
+});
+
+const call = response.choices[0].message.tool_calls![0];
+const args = JSON.parse(call.function.arguments);
+
+if (call.function.name === "process_claim") {
+  const result = await pumpup.approvals.create({
+    queue: "approve_claim",
+    params: { amountUsd: args.amount_usd, claimId: args.claim_id },
+  });
+  if (result.status === "approved" || result.status === "edited") {
+    await processClaim(result.params);
+  }
+}
+```
+</CodeGroup>
+
+## Walkthrough
+
+1. The model returns a tool call instead of a final answer.
+2. Before executing it, your code calls `pumpup.approvals.create` with the proposed arguments.
+3. The reviewer assigned to the `approve_claim` queue sees the action and approves, edits, or rejects it.
+4. On approve or edit, your code runs the tool with `result.params` (which reflects edits, if any).
+
+## Resume behavior
+
+The OpenAI SDK doesn't have a built-in pause/resume primitive — your code is in control of the loop. After the approval returns:
+
+- **Approved or edited** — execute the tool, append the tool result to `messages`, and call the model again.
+- **Rejected** — append a tool result message that explains the rejection, so the model can respond conversationally rather than retrying.
+- **Timed out** — handle it as a system error or a deferral, depending on the workflow.
+
+```python
+messages.append({
+    "role": "tool",
+    "tool_call_id": call.id,
+    "content": json.dumps({"status": result.status, "notes": result.notes}),
+})
+```
+
+## Production notes
+
+- **Configure routing on the queue, not in code.** The `approve_claim` queue's reviewer roster, threshold rules, and SLA live in the [dashboard](https://app.pumpup.dev).
+- **Gate every sensitive tool, not every tool.** Don't wrap read-only tools — only the ones that take action.
+- **Long approvals.** If reviewers can take hours, switch to the async/webhook pattern so your process doesn't block. See [Approvals](/concepts/approvals).
+
+## Related
+
+- [Approvals](/concepts/approvals), [Queues](/concepts/queues)
+- [Anthropic SDK integration](/integrations/anthropic) — same pattern for `tool_use` blocks

@@ -1,0 +1,54 @@
+---
+title: "Audit trail"
+description: "Every request, decision, and escalation is logged with full provenance — exportable for compliance, replayable for debugging."
+---
+
+Pump Up records every step of every request. Who decided what, what data they saw, what they typed in the notes, when the SLA reset, which queue routed the request to which reviewer. The audit trail is the source of truth for compliance reviews and the fastest way to debug an agent that did something unexpected.
+
+## What gets logged
+
+For every request:
+
+- **Inputs** — the `queue`, the full `params`, and any agent-attached context, captured at request time
+- **Routing** — the queue config in effect, including the rule that selected the reviewer
+- **Decision** — the reviewer, the action they took, the resulting `params`, and any notes
+- **Timing** — created, assigned, decided, and resolved timestamps
+- **SLA events** — escalations, reassignments, and timeout fallbacks
+- **Provenance** — the agent identity, API key fingerprint, and request ID
+
+Logs are immutable. Edits to the dashboard create new log entries, never overwrites.
+
+## Where to find it
+
+- **Dashboard** — every request has a timeline view with the full history
+- **Export** — CSV or JSON export per queue, per date range
+- **API** — query historical decisions programmatically
+
+{/* TODO: link to export and audit-API docs once available */}
+
+## Common uses
+
+### Compliance review
+
+Export decisions for a queue over a quarter to show auditors that policy thresholds were enforced and that the right people approved each action.
+
+### Debugging an unexpected outcome
+
+When an agent acts in a way you didn't expect, the audit trail tells you exactly which approval came back as `approved` and what the reviewer saw at the time. Pair it with your own agent traces to reconstruct the run.
+
+### Replaying decisions
+
+Past requests can be replayed against a new queue configuration to see how a policy change would have changed outcomes. Useful for tuning thresholds before rolling them out.
+
+{/* TODO: confirm replay tooling and link to docs */}
+
+## Retention
+
+Audit logs are retained per your account's plan. Logs older than the retention window can be exported on a schedule.
+
+{/* TODO: state default retention window when confirmed */}
+
+## Related
+
+- [Queues](/concepts/queues) — where the configuration that's logged comes from
+- [Tickets](/concepts/tickets) — the reviewer-side view of what gets logged

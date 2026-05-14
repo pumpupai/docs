@@ -1,0 +1,82 @@
+---
+title: "Semantic Kernel"
+description: "Gate Semantic Kernel function invocations behind a Pump Up approval using a function invocation filter."
+---
+
+Semantic Kernel exposes function invocation filters that wrap every kernel function call. The natural integration point for Pump Up is a filter that intercepts sensitive functions, requests an approval, and only continues if the human approves.
+
+The example below is in Python. Semantic Kernel also ships in .NET and Java; the filter API is the same shape across them. {/* TODO: confirm with Leo before defaulting to Python — the user-facing site may want .NET first */}
+
+## Install
+
+<CodeGroup>
+```bash pip
+pip install pumpup semantic-kernel
+```
+
+```bash uv
+uv add pumpup semantic-kernel
+```
+</CodeGroup>
+
+## Minimum working example
+
+```python
+import os
+from semantic_kernel import Kernel
+from semantic_kernel.filters import FunctionInvocationContext, FilterTypes
+from pumpup import PumpUp
+
+pumpup = PumpUp(api_key=os.environ["PUMPUP_API_KEY"])
+
+kernel = Kernel()
+
+@kernel.filter(FilterTypes.FUNCTION_INVOCATION)
+async def pumpup_gate(context: FunctionInvocationContext, next):
+    if context.function.name != "process_claim":
+        await next(context)
+        return
+
+    args = context.arguments
+    result = pumpup.approvals.create(
+        queue="approve_claim",
+        params={"amount_usd": args["amount_usd"], "claim_id": args["claim_id"]},
+    )
+
+    if result.status in ("approved", "edited"):
+        for key, value in result.params.items():
+            context.arguments[key] = value
+        await next(context)
+    else:
+        context.result = f"Not executed — reviewer status: {result.status}"
+```
+
+The filter runs before every kernel function call. For `process_claim`, it pauses, asks for approval, and either continues or short-circuits with a human-readable explanation.
+
+## Walkthrough
+
+1. The agent invokes a kernel function. Semantic Kernel runs the filter chain first.
+2. The filter checks the function name and only gates `process_claim`.
+3. On approve or edit, the filter overwrites `context.arguments` with `result.params` (so reviewer edits take effect) and calls `next(context)` to execute the function.
+4. On reject or timeout, the filter sets `context.result` directly without invoking the function. Semantic Kernel returns that string as the function's output.
+
+## Resume behavior
+
+Semantic Kernel feeds the function result back into the planner / chat loop. A short rejection string lets the model react to the denial — apologize, suggest a smaller amount, or hand off — rather than retry the same call.
+
+## .NET and Java
+
+The filter API exists in `Microsoft.SemanticKernel` (.NET) and the Java port. Translate the same pattern: implement `IFunctionInvocationFilter` (.NET) or the equivalent Java interface, intercept by function name, call Pump Up, then either short-circuit or invoke the next filter.
+
+{/* TODO: add .NET and Java examples once SDK shape for those languages is confirmed */}
+
+## Production notes
+
+- **Routing is server-side.** Reviewers, thresholds, and SLAs for `approve_claim` are configured in the [dashboard](https://app.pumpup.dev).
+- **Filter selectively.** Check `context.function.name` (and plugin name) so you only gate sensitive functions.
+- **Long approvals.** For approvals that may take hours, switch to an async/webhook pattern so the kernel doesn't block. See [Approvals](/concepts/approvals).
+
+## Related
+
+- [Approvals](/concepts/approvals), [Queues](/concepts/queues)
+- [OpenAI integration](/integrations/openai) — same gating idea without a filter framework

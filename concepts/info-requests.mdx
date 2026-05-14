@@ -1,0 +1,83 @@
+---
+title: "Information requests"
+description: "Ask a human for context the agent can't find on its own, then resume the run with their answer."
+---
+
+Use an information request when your agent has hit a gap it can't fill — a missing customer attribute, an ambiguous policy, a document the agent can't locate. Pump Up sends a focused form to the right person and returns their answer to your agent.
+
+## The simplest example
+
+```python
+import os
+from pumpup import PumpUp
+
+pumpup = PumpUp(api_key=os.environ["PUMPUP_API_KEY"])
+
+result = pumpup.info_requests.create(
+    queue="verify_kyc",
+    params={
+        "customer_id": "CUST-19381",
+        "missing_field": "date_of_birth",
+        "context": "Onboarding stalled — passport scan unreadable.",
+    },
+    schema={
+        "date_of_birth": {"type": "date", "required": True},
+        "verification_notes": {"type": "string", "required": False},
+    },
+)
+
+date_of_birth = result.data["date_of_birth"]
+```
+
+The reviewer sees a form built from `schema`. The call blocks until they submit it.
+
+## What `result` contains
+
+| Field | Type | Description |
+|---|---|---|
+| `status` | string | One of `submitted`, `declined`, `timed_out` |
+| `data` | dict | The reviewer's responses, keyed by `schema` field |
+| `responded_by` | string | The reviewer's user ID or email |
+| `responded_at` | datetime | When the form was submitted |
+
+If `status` is `declined`, the reviewer marked the request as unanswerable. Handle this the same way you'd handle a timeout — your agent shouldn't proceed with the missing data.
+
+## When to use this instead of an approval
+
+| You want… | Use |
+|---|---|
+| A yes/no/edit on a proposed action | [Approval](/concepts/approvals) |
+| Structured data the agent doesn't have | Information request |
+| The human to take over and finish the work | [Handoff](/concepts/handoffs) |
+
+## Common patterns
+
+### Multi-field intake
+
+Use one info request to collect several related fields at once, rather than a chain of single-field requests.
+
+```python
+result = pumpup.info_requests.create(
+    queue="verify_kyc",
+    params={"customer_id": "CUST-19381"},
+    schema={
+        "date_of_birth": {"type": "date", "required": True},
+        "address_country": {"type": "string", "required": True},
+        "occupation": {"type": "string", "required": False},
+    },
+)
+```
+
+### Optional fields with defaults
+
+Mark fields `required: False` and check for absence in `result.data` before reading them.
+
+## Configuration
+
+The reviewers, SLA, and ticket layout for each queue are configured in the dashboard. See [Queues](/concepts/queues).
+
+## Related
+
+- [Approvals](/concepts/approvals) — when you want a decision, not data
+- [Handoffs](/concepts/handoffs) — when the human should take over
+- [Tickets](/concepts/tickets) — the reviewer's UI

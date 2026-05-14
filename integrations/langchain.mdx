@@ -1,0 +1,86 @@
+---
+title: "LangChain"
+description: "Use LangChain's human approval callback handler to gate tool execution behind a Pump Up approval."
+---
+
+LangChain has a first-class hook for human-in-the-loop tool execution: `HumanApprovalCallbackHandler`. The handler receives every tool invocation before it runs and returns a boolean to allow or block it. We back that decision with a Pump Up approval.
+
+## Install
+
+<CodeGroup>
+```bash pip
+pip install pumpup langchain langchain-openai
+```
+
+```bash uv
+uv add pumpup langchain langchain-openai
+```
+</CodeGroup>
+
+## Minimum working example
+
+```python
+import os
+from langchain.callbacks import HumanApprovalCallbackHandler
+from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain_openai import ChatOpenAI
+from pumpup import PumpUp
+
+pumpup = PumpUp(api_key=os.environ["PUMPUP_API_KEY"])
+
+def pumpup_approver(serialized_input: str, **_) -> bool:
+    args = json.loads(serialized_input)
+    result = pumpup.approvals.create(
+        queue="approve_claim",
+        params={
+            "amount_usd": args["amount_usd"],
+            "claim_id": args["claim_id"],
+        },
+    )
+    return result.status in ("approved", "edited")
+
+approval = HumanApprovalCallbackHandler(
+    approve=pumpup_approver,
+    should_check=lambda serialized: serialized.get("name") == "process_claim",
+)
+
+agent = create_tool_calling_agent(ChatOpenAI(model="gpt-4o"), tools=[process_claim], prompt=prompt)
+executor = AgentExecutor(agent=agent, tools=[process_claim], callbacks=[approval])
+
+executor.invoke({"input": "Process the claim for CLM-83472, $8400."})
+```
+
+## Walkthrough
+
+1. `HumanApprovalCallbackHandler` intercepts every tool invocation. `should_check` filters to only the tools you want gated — here, just `process_claim`.
+2. When the agent tries to call `process_claim`, LangChain calls `pumpup_approver` with the serialized arguments.
+3. `pumpup_approver` sends the proposal to Pump Up and blocks until the reviewer responds.
+4. Returning `True` lets LangChain execute the tool. Returning `False` raises a `HumanRejectedException`, which the agent sees and can react to.
+
+## Resume behavior
+
+LangChain handles the resume for you. After approval, the tool executes and its output is fed back to the model on the next iteration. After rejection, `HumanRejectedException` propagates — catch it where you want to handle the case, or let it bubble up and end the run.
+
+```python
+try:
+    executor.invoke({"input": "..."})
+except HumanRejectedException as e:
+    log.info("approval_rejected", reason=str(e))
+```
+
+## Reading edited params
+
+If the reviewer edited the request, `result.params` reflects their edits, but LangChain will execute the tool with the *original* arguments. To honor edits, switch to gating outside the agent loop or use a custom tool wrapper that re-reads from Pump Up's response.
+
+{/* TODO: add a worked example of an edit-respecting wrapper once the SDK shape for storing/retrieving edited params is finalized */}
+
+## Production notes
+
+- **Routing lives on the queue.** Configure reviewers, thresholds, and SLAs for `approve_claim` in the [dashboard](https://app.pumpup.dev) — not in the agent code.
+- **Filter with `should_check`.** Don't gate every tool; only the ones that take action.
+- **Long approvals.** For approvals that may take hours, run the agent in a worker that can survive the wait, or switch to an async/webhook pattern. See [Approvals](/concepts/approvals).
+
+## Related
+
+- [Approvals](/concepts/approvals), [Queues](/concepts/queues)
+- [LangGraph integration](/integrations/langgraph) — for graph-based agents that pair well with `interrupt`
