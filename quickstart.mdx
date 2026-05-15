@@ -3,7 +3,7 @@ title: "Quickstart"
 description: "Install the SDK, send your first approval request, and watch a human decision flow back into your agent."
 ---
 
-This quickstart walks you through sending your first approval request from a Python script. By the end, you'll have an agent that proposes an action, waits for a human reviewer, and acts on the response.
+Pump Up supports most programming languages and also has dedicated bindings to popular agent frameworks. This quickstart, walks you through sending your first approval request. By the end, you'll have an agent that proposes an action, waits for a human reviewer, and acts on the response.
 
 ## Prerequisites
 
@@ -14,6 +14,7 @@ This quickstart walks you through sending your first approval request from a Pyt
 ## 1. Install the SDK
 
 <CodeGroup>
+
 ```bash pip
 pip install pumpup
 ```
@@ -25,6 +26,7 @@ uv add pumpup
 ```bash poetry
 poetry add pumpup
 ```
+
 </CodeGroup>
 
 ## 2. Set your API key
@@ -76,12 +78,15 @@ The call blocks until a reviewer responds or the queue's SLA expires. While it w
   <Card title="Approvals" icon="circle-check" href="/concepts/approvals">
     Configure thresholds, edit policies, and escalation rules.
   </Card>
+
   <Card title="Queues" icon="layer-group" href="/concepts/queues">
     Set up routing, reviewers, and SLAs for each queue.
   </Card>
+
   <Card title="Integrations" icon="puzzle-piece" href="/integrations/overview">
     Wire Pump Up into your agent framework.
   </Card>
+
   <Card title="Audit trail" icon="clipboard-list" href="/concepts/audit-trail">
     Export decisions for compliance and debugging.
   </Card>

@@ -1,26 +1,31 @@
 ---
 title: "Pump Up"
-description: "Human-in-the-loop infrastructure for AI agents — approvals, information requests, handoffs, and routing with built-in audit trails."
+description: "Human-in-the-loop infrastructure for AI agents: approvals, information requests, handoffs, and routing with built-in audit trails."
 ---
 
-Pump Up is the human-in-the-loop layer for AI agents. When your agent needs an approval, a missing piece of information, or a handoff to a person, Pump Up routes the request to the right reviewer, enforces SLAs, and returns the answer to your agent — with a full audit trail of who decided what and why.
+**Pump Up lets AI agents get help from humans.**
 
-You add Pump Up to an existing agent in under ten lines. The rest — routing rules, queues, reviewers, escalations — is configured on the server, not hard-coded in your call site.
+You should use Pump Up when your agents need approvals, missing informations, or to handoff to your team.
 
-## The four primitives
+Add Pump Up to an existing agent in a few lines of code, and it routes the request to the right reviewer, enforces SLAs, and returns the answer to your agent, with a full audit trail of who decided what and why.
 
-Every Pump Up interaction is one of four request types. Pick the one that matches what your agent needs from a human.
+## Primitives
+
+Every Pump Up interaction is one of four common request types.
 
 <Columns cols={2}>
   <Card title="Approvals" icon="circle-check" href="/concepts/approvals">
     The agent proposes a sensitive action. A human approves, rejects, or edits.
   </Card>
+
   <Card title="Information requests" icon="circle-question" href="/concepts/info-requests">
     The agent is missing context it can't find. A human supplies it.
   </Card>
+
   <Card title="Handoffs" icon="arrow-right-arrow-left" href="/concepts/handoffs">
     The agent has done all it can. A human takes over and finishes the job.
   </Card>
+
   <Card title="Routing" icon="signs-post" href="/concepts/routing">
     A human decides the next step in the workflow.
   </Card>
@@ -32,13 +37,8 @@ Every Pump Up interaction is one of four request types. Pick the one that matche
   <Card title="Quickstart" icon="rocket" href="/quickstart">
     Send your first approval request in five minutes.
   </Card>
+
   <Card title="Integrations" icon="puzzle-piece" href="/integrations/overview">
     Plug Pump Up into OpenAI, Anthropic, LangChain, LangGraph, Mastra, and more.
   </Card>
 </Columns>
-
-## How it fits
-
-Generic AI agents can't be trusted to run sensitive workflows end-to-end. Real business processes have policies, thresholds, approval paths, and exception logic that need a human in the loop — not as a fallback, but as a deliberate control point.
-
-Pump Up sits between your agent and the people who own those decisions. Your agent calls Pump Up, the right reviewer gets a focused ticket with the agent's context and proposed action, their decision flows back into your agent's run, and every step is logged for compliance and replay.

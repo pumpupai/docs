@@ -3,7 +3,9 @@ title: "Information requests"
 description: "Ask a human for context the agent can't find on its own, then resume the run with their answer."
 ---
 
-Use an information request when your agent has hit a gap it can't fill — a missing customer attribute, an ambiguous policy, a document the agent can't locate. Pump Up sends a focused form to the right person and returns their answer to your agent.
+Use an information request when your agent needs more information to continue. Common examples are a missing customer attribute, an ambiguous policy, or a document the agent can't locate. 
+
+Your agent can share a form with the right person and get the information it needs to continue.
 
 ## The simplest example
 
@@ -34,7 +36,7 @@ The reviewer sees a form built from `schema`. The call blocks until they submit 
 ## What `result` contains
 
 | Field | Type | Description |
-|---|---|---|
+| --- | --- | --- |
 | `status` | string | One of `submitted`, `declined`, `timed_out` |
 | `data` | dict | The reviewer's responses, keyed by `schema` field |
 | `responded_by` | string | The reviewer's user ID or email |
@@ -45,7 +47,7 @@ If `status` is `declined`, the reviewer marked the request as unanswerable. Hand
 ## When to use this instead of an approval
 
 | You want… | Use |
-|---|---|
+| --- | --- |
 | A yes/no/edit on a proposed action | [Approval](/concepts/approvals) |
 | Structured data the agent doesn't have | Information request |
 | The human to take over and finish the work | [Handoff](/concepts/handoffs) |

@@ -3,7 +3,9 @@ title: "Approvals"
 description: "Pause an agent on a sensitive action, send a proposed action to a human, and resume with the decision."
 ---
 
-Use an approval when your agent wants to take an action that needs a human's sign-off — issuing a refund, sending an outbound email, releasing a payout, deleting customer data. Pump Up holds the action, routes a ticket to the right reviewer, and returns their decision so your agent can act on it.
+Use an approval when your agent wants to take an action that needs a human's sign-off. 
+
+Common use-cases are issuing a refund, sending an outbound email, releasing a payout, or destructive actions on your database or system of record. Pump Up routes a ticket to the right reviewer, and returns their decision so your agent can act on it.
 
 ## The simplest example
 
@@ -39,7 +41,7 @@ The reviewer assigned to the `approve_claim` queue gets a ticket with:
 ## What `result` contains
 
 | Field | Type | Description |
-|---|---|---|
+| --- | --- | --- |
 | `status` | string | One of `approved`, `rejected`, `edited`, `timed_out` |
 | `params` | dict | The original `params`, with any reviewer edits applied |
 | `decided_by` | string | The reviewer's user ID or email |

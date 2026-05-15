@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
+  "theme": "willow",
   "name": "Pump Up",
   "colors": {
     "primary": "#16A34A",
@@ -61,10 +61,7 @@
       }
     ]
   },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
+  "logo": "/logo/light.svg",
   "navbar": {
     "primary": {
       "type": "button",
@@ -83,5 +80,6 @@
       "cursor",
       "vscode"
     ]
-  }
+  },
+  "description": "Documentation for Pump Up. Pump Up connects approvals, information requests, and exceptions from AI to your team."
 }
