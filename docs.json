@@ -94,7 +94,6 @@
   "background": {
     "color": {
       "light": "#fbfbf9"
-    },
-    "image": "/images/pumpup-icon.svg"
+    }
   }
 }
