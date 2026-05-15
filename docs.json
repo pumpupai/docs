@@ -1,13 +1,13 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "willow",
+  "theme": "aspen",
   "name": "Pump Up",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#7c7c67",
+    "light": "#67787c",
+    "dark": "#d0d6d8"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "fffff",
   "navigation": {
     "tabs": [
       {
@@ -67,7 +67,13 @@
       "type": "button",
       "label": "Sign in",
       "href": "https://app.pumpup.dev"
-    }
+    },
+    "links": [
+      {
+        "href": "https://pumpup.com",
+        "label": "Home"
+      }
+    ]
   },
   "contextual": {
     "options": [
@@ -81,5 +87,10 @@
       "vscode"
     ]
   },
-  "description": "Documentation for Pump Up. Pump Up connects approvals, information requests, and exceptions from AI to your team."
+  "description": "Documentation for Pump Up. Pump Up connects approvals, information requests, and exceptions from AI to your team.",
+  "background": {
+    "color": {
+      "light": "#f4f4f0"
+    }
+  }
 }
