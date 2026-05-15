@@ -7,7 +7,10 @@
     "light": "#67787c",
     "dark": "#d0d6d8"
   },
-  "favicon": "/images/favicon-32x32.png",
+  "favicon": {
+    "light": "/images/favicon-32x32.png",
+    "dark": "/images/favicon-32x32.png"
+  },
   "navigation": {
     "tabs": [
       {
