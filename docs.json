@@ -93,7 +93,7 @@
   "description": "Documentation for Pump Up. Pump Up connects approvals, information requests, and exceptions from AI to your team.",
   "background": {
     "color": {
-      "light": "#f4f4f0"
+      "light": "#fbfbf9"
     },
     "image": "/images/pumpup-icon.svg"
   }
