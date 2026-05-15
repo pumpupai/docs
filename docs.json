@@ -64,10 +64,7 @@
       }
     ]
   },
-  "logo": {
-    "light": "/images/pumpup-logo-black.svg",
-    "dark": "/images/pumpup-logo-white.svg"
-  },
+  "logo": "/images/pumpup-logo-black.svg",
   "navbar": {
     "primary": {
       "type": "button",
