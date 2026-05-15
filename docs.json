@@ -1,13 +1,13 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "aspen",
+  "theme": "mint",
   "name": "Pump Up",
   "colors": {
     "primary": "#7c7c67",
     "light": "#67787c",
     "dark": "#d0d6d8"
   },
-  "favicon": "fffff",
+  "favicon": "/images/favicon-32x32.png",
   "navigation": {
     "tabs": [
       {
