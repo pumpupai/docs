@@ -7,7 +7,8 @@ Use a handoff when your agent has done its part and needs a person to finish the
 
 ## The simplest example
 
-```python
+<CodeGroup>
+```python Python
 import os
 from pumpup import PumpUp
 
@@ -28,6 +29,53 @@ result = pumpup.handoffs.create(
 
 print(f"Handed off to {result.assigned_to} — case #{result.case_id}")
 ```
+
+```typescript TypeScript
+import { PumpUp } from "@pumpup/sdk";
+
+const pumpup = new PumpUp({ apiKey: process.env.PUMPUP_API_KEY! });
+
+const result = await pumpup.handoffs.create({
+  queue: "reconcile_billing",
+  params: {
+    customerId: "CUST-44210",
+    invoiceId: "INV-2026-04-019",
+    summary: "Usage records and contract terms disagree by $2,140 on overage tier.",
+    agentFindings: [
+      "Contract caps overage at 10K events/mo at $0.001/event",
+      "Usage report shows 12.1K events but billing engine charged for 14.3K",
+    ],
+  },
+});
+
+console.log(`Handed off to ${result.assignedTo} — case #${result.caseId}`);
+```
+
+```python Tools (LangChain)
+import os
+from langchain_core.tools import tool
+from pumpup import PumpUp
+
+pumpup = PumpUp(api_key=os.environ["PUMPUP_API_KEY"])
+
+@tool
+def hand_off_billing_case(customer_id: str, invoice_id: str, summary: str, findings: list[str]) -> str:
+    """Hand off a billing reconciliation case the agent can't resolve."""
+    result = pumpup.handoffs.create(
+        queue="reconcile_billing",
+        params={
+            "customer_id": customer_id,
+            "invoice_id": invoice_id,
+            "summary": summary,
+            "agent_findings": findings,
+        },
+    )
+    return f"Handed off to {result.assigned_to} — case #{result.case_id}"
+
+# The agent calls hand_off_billing_case when it determines it can't reconcile
+# automatically. The tool's return string ends the agent's turn naturally.
+```
+</CodeGroup>
 
 By default, `handoffs.create` returns as soon as the request is delivered to a reviewer. If you want to wait until the human marks the case complete, pass `wait=True`.
 

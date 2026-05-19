@@ -1,0 +1,120 @@
+---
+title: "MCP server"
+description: "Connect any MCP-compatible client — Claude Desktop, Claude Code, Cursor, your own agent — to Pump Up's request primitives as tools."
+---
+
+The Pump Up MCP server exposes approvals, information requests, handoffs, and routing as [Model Context Protocol](https://modelcontextprotocol.io) tools. Any MCP client can discover these tools and call them, which means an agent built on Claude Desktop, Claude Code, Cursor, or any custom MCP host gets human-in-the-loop without an SDK integration.
+
+## Connect
+
+The Pump Up MCP server is a remote server you connect to with an HTTP transport. You authenticate with your Pump Up API key.
+
+### Server URL
+
+```
+https://mcp.pumpup.dev
+```
+
+### Claude Desktop
+
+Add Pump Up to your Claude Desktop config — `~/Library/Application Support/Claude/claude_desktop_config.json` on macOS:
+
+```json
+{
+  "mcpServers": {
+    "pumpup": {
+      "url": "https://mcp.pumpup.dev",
+      "headers": {
+        "Authorization": "Bearer pk_live_..."
+      }
+    }
+  }
+}
+```
+
+Restart Claude Desktop. Pump Up's tools appear in the tools picker.
+
+### Claude Code
+
+```bash
+claude mcp add pumpup --url https://mcp.pumpup.dev \
+  --header "Authorization: Bearer $PUMPUP_API_KEY"
+```
+
+### Cursor
+
+Add to `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "pumpup": {
+      "url": "https://mcp.pumpup.dev",
+      "headers": { "Authorization": "Bearer pk_live_..." }
+    }
+  }
+}
+```
+
+{/* TODO: confirm transport (HTTP vs stdio), exact server URL, and auth header shape */}
+
+## Tools the server exposes
+
+| Tool | What it does |
+| --- | --- |
+| `pumpup_create_approval` | Send a proposed action to a human reviewer. Returns the decision. |
+| `pumpup_create_info_request` | Ask a human to fill in missing structured data. Returns the responses. |
+| `pumpup_create_handoff` | Hand a case off to a human. Returns the case ID and assignee. |
+| `pumpup_create_routing` | Ask a human to pick from a set of next steps. Returns the choice. |
+
+Each tool takes a `queue` and a `params` object that match the SDK shape. See the concept pages — [Approvals](/concepts/approvals), [Information requests](/concepts/info-requests), [Handoffs](/concepts/handoffs), [Routing](/concepts/routing) — for the full schema.
+
+## What the agent sees
+
+The MCP client discovers Pump Up's tools and shows them to the model with their descriptions. A typical interaction:
+
+1. The model decides it wants to take a sensitive action and calls `pumpup_create_approval` with the proposed `params`.
+2. The MCP server forwards the request to Pump Up.
+3. The reviewer responds in the dashboard.
+4. The MCP server returns the decision to the agent as the tool result.
+5. The agent acts on the decision (or explains the rejection and stops).
+
+## Scoping which queues the server can hit
+
+By default the API key has access to every queue in your account. For agents that should only ever touch a subset, mint a scoped key in the [dashboard](https://app.pumpup.dev) and use that in the MCP config.
+
+{/* TODO: confirm scoped-key support and link to dashboard guide */}
+
+## Use in a custom MCP host
+
+If you're building your own agent on top of MCP, point its client at `https://mcp.pumpup.dev` with the `Authorization` header and you'll get the same tool list. The standard MCP client libraries — TypeScript, Python, Rust — all work.
+
+```python
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+
+async with streamablehttp_client(
+    "https://mcp.pumpup.dev",
+    headers={"Authorization": f"Bearer {api_key}"},
+) as (read, write, _):
+    async with ClientSession(read, write) as session:
+        await session.initialize()
+        tools = await session.list_tools()
+        result = await session.call_tool(
+            "pumpup_create_approval",
+            {"queue": "approve_claim", "params": {"amount_usd": 8400, "claim_id": "CLM-83472"}},
+        )
+```
+
+## When to use MCP vs. the SDK
+
+| Use the SDK when… | Use MCP when… |
+| --- | --- |
+| You're writing the agent code yourself | You're using an off-the-shelf agent client (Claude Desktop, Cursor, etc.) |
+| You want typed responses and IDE autocomplete | You want zero-code-change human-in-the-loop |
+| Your agent runs in a service you operate | You're building a tool server consumed by other clients |
+
+## Related
+
+- [CLI](/surfaces/cli) — the same primitives over a shell
+- [OpenAI integration](/integrations/openai), [Anthropic integration](/integrations/anthropic) — when you do want to write the loop yourself

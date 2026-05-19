@@ -9,7 +9,8 @@ Your agent can share a form with the right person and get the information it nee
 
 ## The simplest example
 
-```python
+<CodeGroup>
+```python Python
 import os
 from pumpup import PumpUp
 
@@ -30,6 +31,51 @@ result = pumpup.info_requests.create(
 
 date_of_birth = result.data["date_of_birth"]
 ```
+
+```typescript TypeScript
+import { PumpUp } from "@pumpup/sdk";
+
+const pumpup = new PumpUp({ apiKey: process.env.PUMPUP_API_KEY! });
+
+const result = await pumpup.info_requests.create({
+  queue: "verify_kyc",
+  params: {
+    customerId: "CUST-19381",
+    missingField: "date_of_birth",
+    context: "Onboarding stalled — passport scan unreadable.",
+  },
+  schema: {
+    dateOfBirth: { type: "date", required: true },
+    verificationNotes: { type: "string", required: false },
+  },
+});
+
+const dateOfBirth = result.data.dateOfBirth;
+```
+
+```python Tools (LangChain)
+import os
+from langchain_core.tools import tool
+from pumpup import PumpUp
+
+pumpup = PumpUp(api_key=os.environ["PUMPUP_API_KEY"])
+
+@tool
+def ask_human_for_kyc_field(customer_id: str, missing_field: str, context: str) -> str:
+    """Ask a human reviewer to supply a missing KYC field."""
+    result = pumpup.info_requests.create(
+        queue="verify_kyc",
+        params={"customer_id": customer_id, "missing_field": missing_field, "context": context},
+        schema={missing_field: {"type": "string", "required": True}},
+    )
+    if result.status != "submitted":
+        return f"Reviewer could not provide {missing_field} ({result.status})"
+    return result.data[missing_field]
+
+# Bind ask_human_for_kyc_field alongside your other tools — the agent will call it
+# when it realizes a KYC field is missing.
+```
+</CodeGroup>
 
 The reviewer sees a form built from `schema`. The call blocks until they submit it.
 

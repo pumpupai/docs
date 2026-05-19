@@ -42,11 +42,20 @@
               "integrations/overview",
               "integrations/openai",
               "integrations/anthropic",
+              "integrations/chatgpt-managed-agents",
               "integrations/langchain",
               "integrations/langgraph",
               "integrations/langchain4j",
               "integrations/semantic-kernel",
               "integrations/mastra"
+            ]
+          },
+          {
+            "group": "Other interfaces",
+            "pages": [
+              "surfaces/cli",
+              "surfaces/mcp",
+              "surfaces/skills"
             ]
           }
         ]

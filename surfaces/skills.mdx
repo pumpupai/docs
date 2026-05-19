@@ -1,0 +1,117 @@
+---
+title: "Skills"
+description: "Package Pump Up as a skill that Claude Code, Anthropic Skills, ChatGPT Apps, and other agent runtimes can pick up automatically."
+---
+
+A skill is a markdown file (`SKILL.md`) plus optional helper scripts that an agent runtime loads on demand. The model reads the skill's description, decides when it's relevant, and follows the instructions inside — typically by shelling out to a CLI or calling an MCP tool.
+
+Pump Up plugs into skills two ways:
+
+- **CLI-based** — the skill calls the [Pump Up CLI](/surfaces/cli) directly. Works in any runtime where the agent has shell access.
+- **MCP-based** — the skill instructs the agent to call Pump Up's [MCP tools](/surfaces/mcp). Works in runtimes with MCP support.
+
+This page shows the same approval skill in each runtime so you can copy the right one.
+
+## When to package as a skill
+
+A skill is the right surface when the *agent* should decide when to ask a human, rather than your code gating an action. The agent sees the skill description, infers it applies, and runs the instructions inside.
+
+Use a skill when:
+
+- You're using an off-the-shelf agent runtime (Claude Code, Claude Desktop, ChatGPT) and don't control the loop.
+- The trigger condition is judgment-call-shaped — "when the user asks for a refund," "when a payout exceeds policy" — not a hard code branch.
+- You want to ship Pump Up support to non-engineers who can install a skill but won't write SDK code.
+
+If your code already knows when to ask, prefer the SDK or CLI directly.
+
+## Claude Code
+
+Claude Code auto-loads skills from `.claude/skills/<name>/SKILL.md` (project) or `~/.claude/skills/<name>/SKILL.md` (user-global). The agent reads the description and invokes the skill via its Bash tool when relevant.
+
+```markdown SKILL.md
+---
+name: approve-claim
+description: Use when the agent has resolved an insurance claim and needs a human to approve the payout. Sends the proposed amount to the claims team via Pump Up and returns the decision.
+---
+
+# Approve a claim
+
+When you've decided on a claim payout, run:
+
+\`\`\`bash
+pumpup approvals create \\
+  --queue approve_claim \\
+  --params "$(jq -n --arg id "$CLAIM_ID" --argjson amt $AMOUNT '{claim_id: $id, amount_usd: $amt}')"
+\`\`\`
+
+Read the JSON output:
+
+- `status: "approved"` or `"edited"` — proceed with `params.amount_usd`
+- `status: "rejected"` — explain `notes` to the user and stop
+- `status: "timed_out"` — tell the user no reviewer was available; do not pay out
+```
+
+Requirements: `pumpup` CLI on `PATH`, `PUMPUP_API_KEY` in the environment.
+
+## Anthropic Skills (SDK)
+
+Skills built with the Claude Agent SDK use the same `SKILL.md` format. Drop the file under your agent's skills directory and the SDK loads it on initialization.
+
+```python
+from claude_agent_sdk import ClaudeAgentClient, ClaudeAgentOptions
+
+client = ClaudeAgentClient(
+    options=ClaudeAgentOptions(skills_dir="./skills"),
+)
+```
+
+The skill body is the same as the Claude Code example above. The SDK gives the agent a Bash tool by default, so the `pumpup` CLI invocation works unchanged.
+
+{/* TODO: confirm `skills_dir` option name in the Claude Agent SDK */}
+
+## Claude Desktop
+
+Claude Desktop loads skills via the same Anthropic Skills format. Place `SKILL.md` files under the skills directory configured in Claude Desktop's settings, restart, and the skill becomes available.
+
+For Claude Desktop the MCP-based variant is usually cleaner — it doesn't require shipping the CLI to every user's machine.
+
+```markdown SKILL.md
+---
+name: approve-claim
+description: Use when the agent has resolved an insurance claim and needs a human to approve the payout.
+---
+
+Call the `pumpup_create_approval` MCP tool with:
+
+- `queue`: `"approve_claim"`
+- `params`: `{ "amount_usd": <number>, "claim_id": <string> }`
+
+If the result's `status` is `approved` or `edited`, proceed with `params.amount_usd`. Otherwise stop and explain `notes` to the user.
+```
+
+The user adds the [Pump Up MCP server](/surfaces/mcp) to Claude Desktop once. Every skill that references `pumpup_*` tools then works.
+
+## ChatGPT Apps and Managed Agents
+
+ChatGPT's Apps and Managed Agents accept skills (called "instructions" in the UI) and connect to MCP servers. Use the MCP-based skill body and add Pump Up as a connector. See [ChatGPT Managed Agents](/integrations/chatgpt-managed-agents).
+
+{/* TODO: confirm whether ChatGPT supports the SKILL.md format directly or only the in-app instructions field */}
+
+## Skill anatomy
+
+Every skill has the same shape regardless of runtime:
+
+| Frontmatter field | Purpose |
+| --- | --- |
+| `name` | Identifier the runtime uses to refer to the skill |
+| `description` | What the model reads to decide whether to invoke the skill — make this concrete and trigger-shaped |
+
+A good description names the situation that should trigger the skill, not just what it does. "Use when the agent has resolved a claim and needs a payout approved" beats "Approves claims via Pump Up."
+
+The body is plain markdown — instructions the model follows. Keep it focused on the decision points, not background.
+
+## Related
+
+- [CLI](/surfaces/cli) — the binary skills typically shell out to
+- [MCP server](/surfaces/mcp) — the tool surface skills use in MCP-aware runtimes
+- [ChatGPT Managed Agents](/integrations/chatgpt-managed-agents)

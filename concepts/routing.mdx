@@ -5,9 +5,12 @@ description: "Let a human pick the next step in the workflow when the agent shou
 
 Use a routing request when the agent has reached a branch point and a human should choose which path to take. Unlike approvals, the human isn't sanctioning a proposed action — they're selecting from a set of options.
 
+Routing is most natural in graph-based agents — LangGraph, Mastra, Temporal, anything with explicit conditional edges between steps — where the human's choice maps directly onto which branch fires. You can use it from a plain agent loop too; you just call `routing.create` in your code and switch on `result.choice`.
+
 ## The simplest example
 
-```python
+<CodeGroup>
+```python Python
 import os
 from pumpup import PumpUp
 
@@ -31,6 +34,60 @@ result = pumpup.routing.create(
 next_step = result.choice
 ```
 
+```typescript TypeScript
+import { PumpUp } from "@pumpup/sdk";
+
+const pumpup = new PumpUp({ apiKey: process.env.PUMPUP_API_KEY! });
+
+const result = await pumpup.routing.create({
+  queue: "discount_path",
+  params: {
+    dealId: "DEAL-91204",
+    requestedDiscountPct: 28,
+    arrUsd: 145000,
+  },
+  options: [
+    { value: "approve_as_is", label: "Approve at 28%" },
+    { value: "counter_at_20", label: "Counter at 20%" },
+    { value: "escalate_to_vp", label: "Escalate to VP of Sales" },
+    { value: "decline", label: "Decline" },
+  ],
+});
+
+const nextStep = result.choice;
+```
+
+```python Tools (LangGraph)
+import os
+from langgraph.graph import StateGraph, END
+from pumpup import PumpUp
+
+pumpup = PumpUp(api_key=os.environ["PUMPUP_API_KEY"])
+
+def pick_discount_path(state):
+    result = pumpup.routing.create(
+        queue="discount_path",
+        params={
+            "deal_id": state["deal_id"],
+            "requested_discount_pct": state["pct"],
+            "arr_usd": state["arr"],
+        },
+        options=[
+            {"value": "approve_as_is", "label": f"Approve at {state['pct']}%"},
+            {"value": "counter_at_20", "label": "Counter at 20%"},
+            {"value": "escalate_to_vp", "label": "Escalate to VP"},
+            {"value": "decline", "label": "Decline"},
+        ],
+    )
+    return {**state, "next": result.choice}
+
+graph = StateGraph(dict)
+graph.add_node("route", pick_discount_path)
+graph.set_entry_point("route")
+graph.add_conditional_edges("route", lambda s: s["next"])
+```
+</CodeGroup>
+
 The reviewer sees the deal context and picks one option. Their selection comes back as `result.choice`.
 
 ## What `result` contains
@@ -41,15 +98,6 @@ The reviewer sees the deal context and picks one option. Their selection comes b
 | `choice` | string | The `value` of the option the reviewer picked |
 | `decided_by` | string | The reviewer's user ID or email |
 | `notes` | string | Free-text note the reviewer added, if any |
-
-## Routing vs. server-side queue routing
-
-Two different things share the word "routing":
-
-- **This page** — a request type your agent uses when a *human* should choose the next step.
-- **Queue routing** — server-side configuration that determines *which reviewer* gets a given request, based on queue rules and the request's `params`. See [Queues](/concepts/queues).
-
-Both can apply to the same workflow. A discount request might be routed by the queue to a sales manager (queue routing), who then picks one of several next steps (this request type).
 
 ## Common patterns
 

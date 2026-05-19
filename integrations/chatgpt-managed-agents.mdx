@@ -1,0 +1,51 @@
+---
+title: "ChatGPT Managed Agents"
+description: "Connect Pump Up to a ChatGPT Managed Agent or App via MCP, so the agent can request human approvals, info, handoffs, and routing."
+---
+
+ChatGPT Managed Agents and Apps in ChatGPT consume external capabilities through the Model Context Protocol. The fastest way to give a managed agent access to Pump Up is to add Pump Up's MCP server as a connector — no code, no deploy.
+
+## Add Pump Up as a connector
+
+In the ChatGPT admin console for your managed agent or app:
+
+1. Open **Connectors** (or **Tools**, depending on the surface).
+2. Add a new MCP connector pointing at `https://mcp.pumpup.dev`.
+3. Set the `Authorization` header to `Bearer <your Pump Up API key>`.
+4. Save. The agent now sees `pumpup_create_approval`, `pumpup_create_info_request`, `pumpup_create_handoff`, and `pumpup_create_routing` in its tool list.
+
+{/* TODO: confirm exact ChatGPT admin UI labels and connector flow */}
+
+For per-environment isolation, mint a scoped API key in the [Pump Up dashboard](https://app.pumpup.dev) that only sees a subset of queues, and use that as the connector's bearer token.
+
+## Tell the agent when to use Pump Up
+
+Connecting the server isn't enough — you also need to tell the agent when to call which tool. Use the agent's instructions field, or ship a [skill](/surfaces/skills) it can pick up.
+
+Example instruction snippet for an agent that handles insurance claims:
+
+```text
+When you've resolved a claim and the payout exceeds $1,000, call
+pumpup_create_approval with:
+  - queue: "approve_claim"
+  - params: { amount_usd: <number>, claim_id: <string> }
+
+If the result's status is "approved" or "edited", proceed with params.amount_usd.
+If "rejected" or "timed_out", explain to the user and do not pay out.
+```
+
+## When to use this vs. the SDK
+
+Use ChatGPT Managed Agents when:
+
+- The agent runs on OpenAI's hosted infrastructure
+- Non-engineers need to update prompts and tool wiring without a deploy
+- You don't need control over the model loop
+
+Reach for the [OpenAI Agents SDK](/integrations/openai) instead if you want to host the agent yourself, customize the loop, or add code-level guardrails.
+
+## Related
+
+- [MCP server](/surfaces/mcp) — full reference for the connector
+- [Skills](/surfaces/skills) — package Pump Up usage as a reusable skill
+- [Approvals](/concepts/approvals), [Information requests](/concepts/info-requests), [Handoffs](/concepts/handoffs), [Routing](/concepts/routing)

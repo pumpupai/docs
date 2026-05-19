@@ -1,137 +1,116 @@
 ---
-title: "OpenAI SDK"
-description: "Gate the OpenAI tool-calling loop behind a Pump Up approval before any tool runs."
+title: "OpenAI Agents SDK"
+description: "Gate tool execution in an OpenAI Agents SDK agent behind a Pump Up approval."
 ---
 
-The OpenAI SDK exposes tool calls as `tool_calls` on the assistant message. The natural integration point for Pump Up is the moment between the model returning a tool call and your code executing it: pause, ask a human, then run the tool only if they approve.
+The [OpenAI Agents SDK](https://openai.github.io/openai-agents-python/) wraps the model loop, tool execution, and handoffs into a single `Agent` + `Runner` API. The natural integration point for Pump Up is inside a function tool: when the model calls a sensitive tool, the tool body checks Pump Up before it acts.
 
 ## Install
 
 <CodeGroup>
 ```bash pip
-pip install pumpup openai
+pip install openai-agents pumpup
 ```
 
 ```bash npm
-npm install @pumpup/sdk openai
+npm install @openai/agents @pumpup/sdk
 ```
 
 ```bash pnpm
-pnpm add @pumpup/sdk openai
-```
-
-```bash yarn
-yarn add @pumpup/sdk openai
+pnpm add @openai/agents @pumpup/sdk
 ```
 </CodeGroup>
 
 ## Minimum working example
 
-The agent has decided to call `process_claim`. We send the proposed call to a human and only execute the tool if they approve.
-
 <CodeGroup>
 ```python Python
-import os, json
-from openai import OpenAI
+import os, asyncio
+from agents import Agent, Runner, function_tool
 from pumpup import PumpUp
 
-openai = OpenAI()
 pumpup = PumpUp(api_key=os.environ["PUMPUP_API_KEY"])
 
-response = openai.chat.completions.create(
-    model="gpt-4o",
-    messages=[{"role": "user", "content": "Process the claim for CLM-83472, $8400."}],
-    tools=[{
-        "type": "function",
-        "function": {
-            "name": "process_claim",
-            "parameters": {"type": "object", "properties": {
-                "claim_id": {"type": "string"},
-                "amount_usd": {"type": "number"},
-            }},
-        },
-    }],
+@function_tool
+def process_claim(claim_id: str, amount_usd: float) -> str:
+    """Pay out an insurance claim."""
+    if amount_usd > 1000:
+        result = pumpup.approvals.create(
+            queue="approve_claim",
+            params={"amount_usd": amount_usd, "claim_id": claim_id},
+        )
+        if result.status not in ("approved", "edited"):
+            return f"Not paid — reviewer status: {result.status}"
+        amount_usd = result.params["amount_usd"]
+    pay_out(claim_id, amount_usd)
+    return f"Paid out ${amount_usd:.2f} for {claim_id}"
+
+agent = Agent(
+    name="Claims Agent",
+    instructions="Resolve insurance claims using process_claim.",
+    tools=[process_claim],
 )
 
-call = response.choices[0].message.tool_calls[0]
-args = json.loads(call.function.arguments)
-
-if call.function.name == "process_claim":
-    result = pumpup.approvals.create(
-        queue="approve_claim",
-        params={"amount_usd": args["amount_usd"], "claim_id": args["claim_id"]},
-    )
-    if result.status in ("approved", "edited"):
-        process_claim(**result.params)
+asyncio.run(Runner.run(agent, "Process claim CLM-83472 for $8400."))
 ```
 
 ```typescript TypeScript
-import OpenAI from "openai";
+import { Agent, run, tool } from "@openai/agents";
+import { z } from "zod";
 import { PumpUp } from "@pumpup/sdk";
 
-const openai = new OpenAI();
 const pumpup = new PumpUp({ apiKey: process.env.PUMPUP_API_KEY! });
 
-const response = await openai.chat.completions.create({
-  model: "gpt-4o",
-  messages: [{ role: "user", content: "Process the claim for CLM-83472, $8400." }],
-  tools: [{
-    type: "function",
-    function: {
-      name: "process_claim",
-      parameters: { type: "object", properties: {
-        claim_id: { type: "string" },
-        amount_usd: { type: "number" },
-      }},
-    },
-  }],
+const processClaim = tool({
+  name: "process_claim",
+  description: "Pay out an insurance claim.",
+  parameters: z.object({ claimId: z.string(), amountUsd: z.number() }),
+  async execute({ claimId, amountUsd }) {
+    if (amountUsd > 1000) {
+      const result = await pumpup.approvals.create({
+        queue: "approve_claim",
+        params: { claimId, amountUsd },
+      });
+      if (result.status !== "approved" && result.status !== "edited") {
+        return `Not paid — reviewer status: ${result.status}`;
+      }
+      amountUsd = result.params.amountUsd;
+    }
+    await payOut(claimId, amountUsd);
+    return `Paid out $${amountUsd} for ${claimId}`;
+  },
 });
 
-const call = response.choices[0].message.tool_calls![0];
-const args = JSON.parse(call.function.arguments);
+const agent = new Agent({
+  name: "Claims Agent",
+  instructions: "Resolve insurance claims using process_claim.",
+  tools: [processClaim],
+});
 
-if (call.function.name === "process_claim") {
-  const result = await pumpup.approvals.create({
-    queue: "approve_claim",
-    params: { amountUsd: args.amount_usd, claimId: args.claim_id },
-  });
-  if (result.status === "approved" || result.status === "edited") {
-    await processClaim(result.params);
-  }
-}
+await run(agent, "Process claim CLM-83472 for $8400.");
 ```
 </CodeGroup>
 
 ## Walkthrough
 
-1. The model returns a tool call instead of a final answer.
-2. Before executing it, your code calls `pumpup.approvals.create` with the proposed arguments.
-3. The reviewer assigned to the `approve_claim` queue sees the action and approves, edits, or rejects it.
-4. On approve or edit, your code runs the tool with `result.params` (which reflects edits, if any).
+1. The model decides to call `process_claim`. The Agents SDK runs the tool body.
+2. The body threshold-checks the amount and, for anything above $1,000, calls Pump Up.
+3. The reviewer assigned to `approve_claim` approves, edits, or rejects.
+4. On approve or edit, the body pays out using `result.params.amount_usd` (which reflects edits). On reject or timeout, the tool returns a string the model sees as the tool result and can react to conversationally.
 
-## Resume behavior
+## Other patterns
 
-The OpenAI SDK doesn't have a built-in pause/resume primitive — your code is in control of the loop. After the approval returns:
-
-- **Approved or edited** — execute the tool, append the tool result to `messages`, and call the model again.
-- **Rejected** — append a tool result message that explains the rejection, so the model can respond conversationally rather than retrying.
-- **Timed out** — handle it as a system error or a deferral, depending on the workflow.
-
-```python
-messages.append({
-    "role": "tool",
-    "tool_call_id": call.id,
-    "content": json.dumps({"status": result.status, "notes": result.notes}),
-})
-```
+- **Guardrails for hard rules.** Use the SDK's `input_guardrail` / `output_guardrail` to block requests before the agent ever sees them. Save Pump Up for *judgment* gates where a human needs to weigh in.
+- **Hooks for cross-cutting gating.** If many tools should be gated, use a lifecycle hook to check the tool name and call Pump Up centrally instead of repeating the check in each tool body.
+- **Agent handoffs** (the SDK's term) are different from Pump Up's [Handoffs](/concepts/handoffs) — SDK handoffs hand control between agents; Pump Up handoffs hand control to a person. Use Pump Up's `handoffs.create` from inside a tool when no other agent can finish the job.
 
 ## Production notes
 
-- **Configure routing on the queue, not in code.** The `approve_claim` queue's reviewer roster, threshold rules, and SLA live in the [dashboard](https://app.pumpup.dev).
-- **Gate every sensitive tool, not every tool.** Don't wrap read-only tools — only the ones that take action.
-- **Long approvals.** If reviewers can take hours, switch to the async/webhook pattern so your process doesn't block. See [Approvals](/concepts/approvals).
+- **Routing is server-side.** Reviewers, thresholds, and SLAs for `approve_claim` are configured in the [dashboard](https://app.pumpup.dev), not in your tool.
+- **Long approvals.** If reviewers can take hours, switch to the async/webhook pattern so the agent process doesn't block. See [Approvals](/concepts/approvals).
 
 ## Related
 
 - [Approvals](/concepts/approvals), [Queues](/concepts/queues)
-- [Anthropic SDK integration](/integrations/anthropic) — same pattern for `tool_use` blocks
+- [Claude Agent SDK integration](/integrations/anthropic) — the equivalent for Anthropic
+- [ChatGPT Managed Agents](/integrations/chatgpt-managed-agents) — for hosted ChatGPT agents

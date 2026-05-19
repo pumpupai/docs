@@ -10,28 +10,33 @@ These pages show the idiomatic integration point for each framework — the righ
 ## Pick your framework
 
 <Columns cols={2}>
-  <Card title="OpenAI SDK" icon="circle-bolt" href="/integrations/openai">
-    Gate `tool_calls` behind an approval before executing them.
+  <Card title="OpenAI Agents SDK" href="/integrations/openai">
+    Gate function tools behind an approval inside `Runner.run`.
   </Card>
-  <Card title="Anthropic SDK" icon="circle-bolt" href="/integrations/anthropic">
-    Gate `tool_use` blocks behind an approval before tool execution.
+  <Card title="Claude Agent SDK" href="/integrations/anthropic">
+    Gate sensitive tools with a `PreToolUse` hook.
   </Card>
-  <Card title="LangChain" icon="link" href="/integrations/langchain">
+  <Card title="ChatGPT Managed Agents" href="/integrations/chatgpt-managed-agents">
+    Add Pump Up as an MCP connector — no code.
+  </Card>
+  <Card title="LangChain" href="/integrations/langchain">
     Use a callback handler to intercept tool calls.
   </Card>
-  <Card title="LangGraph" icon="diagram-project" href="/integrations/langgraph">
+  <Card title="LangGraph" href="/integrations/langgraph">
     Add a node that pairs naturally with `interrupt`.
   </Card>
-  <Card title="LangChain4j" icon="java" href="/integrations/langchain4j">
+  <Card title="LangChain4j" href="/integrations/langchain4j">
     The same pattern, in Java.
   </Card>
-  <Card title="Semantic Kernel" icon="microsoft" href="/integrations/semantic-kernel">
+  <Card title="Semantic Kernel" href="/integrations/semantic-kernel">
     Gate kernel function calls in Python or .NET.
   </Card>
-  <Card title="Mastra" icon="bolt" href="/integrations/mastra">
+  <Card title="Mastra" href="/integrations/mastra">
     Wire Pump Up into a Mastra workflow step.
   </Card>
 </Columns>
+
+For runtimes you don't control — Claude Code, Claude Desktop, ChatGPT Apps — package Pump Up as a [skill](/surfaces/skills). The agent picks it up automatically and decides when to involve a human.
 
 ## Don't see your framework?
 

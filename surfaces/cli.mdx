@@ -1,0 +1,132 @@
+---
+title: "CLI"
+description: "Send Pump Up requests from a shell — useful for skills, cron jobs, CI checks, and any process that doesn't want an SDK dependency."
+---
+
+The Pump Up CLI is a thin wrapper around the same API the SDKs use. It's the right surface when you don't want to add a language dependency — most often, when you're writing an [Anthropic skill](https://docs.claude.com/en/docs/agents/skills) or a Claude Code skill that needs to ask a human for approval, or running a one-shot script in CI.
+
+## Install
+
+<CodeGroup>
+```bash macOS / Linux (Homebrew)
+brew install pumpup/tap/pumpup
+```
+
+```bash npm
+npm install -g @pumpup/cli
+```
+
+```bash Direct download
+curl -fsSL https://pumpup.dev/install.sh | sh
+```
+</CodeGroup>
+
+{/* TODO: confirm distribution channels for the CLI */}
+
+## Authenticate
+
+Either log in interactively (recommended for local dev):
+
+```bash
+pumpup login
+```
+
+…or set an API key as an environment variable (recommended for skills, CI, and servers):
+
+```bash
+export PUMPUP_API_KEY="pk_live_..."
+```
+
+## Send a request
+
+The CLI mirrors the SDK: each request type is a subcommand.
+
+```bash
+pumpup approvals create \
+  --queue approve_claim \
+  --params '{"amount_usd": 8400, "claim_id": "CLM-83472"}'
+```
+
+The command blocks until the reviewer responds or the queue's SLA expires, then prints the result as JSON to stdout:
+
+```json
+{
+  "status": "approved",
+  "params": { "amount_usd": 8400, "claim_id": "CLM-83472" },
+  "decided_by": "alex@acme.com",
+  "decided_at": "2026-05-15T14:21:09Z",
+  "notes": "Confirmed with customer support transcript."
+}
+```
+
+The exit code is `0` on `approved` or `edited`, `1` on `rejected`, `2` on `timed_out`. {/* TODO: confirm exit code mapping */}
+
+### All request types
+
+```bash
+pumpup approvals create     --queue <name> --params <json>
+pumpup info-requests create --queue <name> --params <json> --schema <json>
+pumpup handoffs create      --queue <name> --params <json>
+pumpup routing create       --queue <name> --params <json> --options <json>
+```
+
+### Pass params from a file
+
+For larger payloads, pipe in JSON or point at a file:
+
+```bash
+pumpup approvals create --queue approve_claim --params @claim.json
+cat claim.json | pumpup approvals create --queue approve_claim --params -
+```
+
+## Use in a skill
+
+The CLI is the right surface for skills consumed by Claude Code, Anthropic Skills SDK, Claude Desktop, and similar runtimes. See [Skills](/surfaces/skills) for the full SKILL.md examples.
+
+## Use in a shell script
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+result=$(pumpup approvals create \
+  --queue approve_claim \
+  --params "{\"amount_usd\": $AMOUNT, \"claim_id\": \"$CLAIM_ID\"}")
+
+status=$(echo "$result" | jq -r .status)
+
+case "$status" in
+  approved|edited)
+    amount=$(echo "$result" | jq -r .params.amount_usd)
+    process_claim "$CLAIM_ID" "$amount"
+    ;;
+  rejected)
+    echo "Rejected: $(echo "$result" | jq -r .notes)" >&2
+    exit 1
+    ;;
+  timed_out)
+    echo "Timed out — escalating" >&2
+    exit 2
+    ;;
+esac
+```
+
+## Reference
+
+| Flag | Description |
+| --- | --- |
+| `--queue` | Queue name (required) |
+| `--params` | JSON object, `@file`, or `-` for stdin (required) |
+| `--schema` | Info-request schema (info-requests only) |
+| `--options` | Routing options array (routing only) |
+| `--wait` | For handoffs: wait until the case is marked complete |
+| `--timeout` | Override the queue's SLA for this call |
+| `--json` | Always print the full JSON result (default behavior) |
+| `--quiet` | Suppress all output; rely on exit code |
+
+{/* TODO: confirm flag set with the CLI implementation */}
+
+## Related
+
+- [MCP server](/surfaces/mcp) — for clients that speak the Model Context Protocol
+- [Approvals](/concepts/approvals), [Information requests](/concepts/info-requests), [Handoffs](/concepts/handoffs), [Routing](/concepts/routing)

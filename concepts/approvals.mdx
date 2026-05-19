@@ -9,7 +9,8 @@ Common use-cases are issuing a refund, sending an outbound email, releasing a pa
 
 ## The simplest example
 
-```python
+<CodeGroup>
+```python Python
 import os
 from pumpup import PumpUp
 
@@ -26,6 +27,51 @@ result = pumpup.approvals.create(
 if result.status == "approved":
     process_claim(result.params["claim_id"])
 ```
+
+```typescript TypeScript
+import { PumpUp } from "@pumpup/sdk";
+
+const pumpup = new PumpUp({ apiKey: process.env.PUMPUP_API_KEY! });
+
+const result = await pumpup.approvals.create({
+  queue: "approve_claim",
+  params: {
+    amountUsd: 8400,
+    claimId: "CLM-83472",
+  },
+});
+
+if (result.status === "approved") {
+  await processClaim(result.params.claimId);
+}
+```
+
+```python Tools (LangChain)
+import json, os
+from langchain.callbacks import HumanApprovalCallbackHandler
+from pumpup import PumpUp
+
+pumpup = PumpUp(api_key=os.environ["PUMPUP_API_KEY"])
+
+def pumpup_approver(serialized_input: str, **_) -> bool:
+    args = json.loads(serialized_input)
+    result = pumpup.approvals.create(
+        queue="approve_claim",
+        params={
+            "amount_usd": args["amount_usd"],
+            "claim_id": args["claim_id"],
+        },
+    )
+    return result.status in ("approved", "edited")
+
+approval = HumanApprovalCallbackHandler(
+    approve=pumpup_approver,
+    should_check=lambda s: s.get("name") == "process_claim",
+)
+
+executor.invoke({"input": "Process CLM-83472, $8400."}, callbacks=[approval])
+```
+</CodeGroup>
 
 `approvals.create` blocks until the reviewer responds or the queue's SLA expires.
 
