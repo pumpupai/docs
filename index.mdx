@@ -1,13 +1,45 @@
 ---
 title: "Pump Up"
-description: "Pump Up manages how your AI agents get help from humans."
+description: "Pump Up is infrastructure that powers agent-to-human communication. It lets your agents ask people for approvals, decisions, or information."
 ---
 
-Pump Up gives your AI agents the ability request information from the humans in your company. It is really easy to integrate with any existing agent framework, and we provide a full service platform for managing, routing, interfacing with, and logging these tickets.
+Pump Up is an operational control plane for your autonomous agents. It provides the infrastructure for them to ask for approvals, decisions, or information from you or your team.
 
-## Primitives
+## How it works
 
-Pump Up supports four ticket types.
+Pump Up integrates with any existing agent framework, such as OpenClaw, LangChain, or Claude Agent SDK. You can import it as a library or use it as a Skill.
+
+Agents use Pump Up's API to create and route tickets which require human response.
+
+## Types of tickets
+
+Pump Up supports three ticket types.
+
+<Columns cols={2}>
+  <Card title="Approvals" icon="circle-check" href="/concepts/approvals">
+    The agent proposes a sensitive action. A human approves, rejects, or edits.
+  </Card>
+
+  <Card title="Information requests" icon="circle-question" href="/concepts/info-requests">
+    The agent is missing context it can't find. A human supplies it.
+  </Card>
+
+  <Card title="Handoffs" icon="arrow-right-arrow-left" href="/concepts/handoffs">
+    The agent has done all it can. A human takes over and finishes the job.
+  </Card>
+</Columns>
+
+## Start here
+
+<Columns cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Send your first approval request in five minutes.
+  </Card>
+
+  <Card title="Integrations" icon="puzzle-piece" href="/integrations/overview">
+    Plug Pump Up into OpenAI, Anthropic, LangChain, LangGraph, Mastra, and more.
+  </Card>
+</Columns>
 
 <Columns cols={2}>
   <Card title="Approvals" icon="circle-check" href="/concepts/approvals">
@@ -24,17 +56,5 @@ Pump Up supports four ticket types.
 
   <Card title="Routing" icon="signs-post" href="/concepts/routing">
     A human picks the next step in the workflow. Typically used in graph-based agents.
-  </Card>
-</Columns>
-
-## Start here
-
-<Columns cols={2}>
-  <Card title="Quickstart" icon="rocket" href="/quickstart">
-    Send your first approval request in five minutes.
-  </Card>
-
-  <Card title="Integrations" icon="puzzle-piece" href="/integrations/overview">
-    Plug Pump Up into OpenAI, Anthropic, LangChain, LangGraph, Mastra, and more.
   </Card>
 </Columns>

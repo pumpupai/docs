@@ -10,6 +10,7 @@ Common use-cases are issuing a refund, sending an outbound email, releasing a pa
 ## The simplest example
 
 <CodeGroup>
+
 ```python Python
 import os
 from pumpup import PumpUp
@@ -71,6 +72,7 @@ approval = HumanApprovalCallbackHandler(
 
 executor.invoke({"input": "Process CLM-83472, $8400."}, callbacks=[approval])
 ```
+
 </CodeGroup>
 
 `approvals.create` blocks until the reviewer responds or the queue's SLA expires.
@@ -128,6 +130,8 @@ if result.status == "timed_out":
 ### Async approvals with webhooks
 
 For long-running approvals, configure a webhook on the queue and use the non-blocking variant.
+
+{/* TODO: confirm async/webhook SDK shape — replace with real method name and payload */}
 
 {/* TODO: confirm async/webhook SDK shape — replace with real method name and payload */}
 
